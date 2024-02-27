@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Webcam Streaming Example</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      video {
+        width: 100%;
+        height: auto;
+        max-width: 640px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <video ref="video" autoplay></video>
+      <button @click="startStreaming">Start Streaming</button>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@3.2.22/dist/vue.global.js"></script>
+    <script>
+      const app = Vue.createApp({
+        data() {
+          return {
+            videoStream: null,
+          };
+        },
+        mounted() {
+          navigator.mediaDevices
+            .getUserMedia({ video: true })
+            .then((stream) => {
+              this.videoStream = stream;
+              this.$refs.video.srcObject = stream;
+            })
+            .catch((err) => {
+              console.error("Failed to get user media", err);
+            });
+        },
+        methods: {
+          startStreaming() {
+            const videoTrack = this.videoStream.getVideoTracks()[0];
+            const command = `ffmpeg -f v4l2 -input_format mjpeg -video_size ${
+              videoTrack.getSettings().width
+            }x${
+              videoTrack.getSettings().height
+            } -i video="Integrated Camera" -c:v libx264 -pix_fmt yuv420p -preset ultrafast -f flv rtmp://localhost:9000/test`;
+            console.log(command);
+            fetch("http://localhost:3000/stream", {
+              method: "POST",
+              body: JSON.stringify({ command }),
+              headers: {
+                "Content-Type": "application/json",
+              },
+            })
+              .then((response) => {
+                if (!response.ok) {
+                  throw new Error("Failed to start streaming");
+                }
+                console.log("Streaming started successfully");
+              })
+              .catch((err) => {
+                console.error("Failed to start streaming", err);
+              });
+          },
+        },
+      });
+
+      app.mount("#app");
+    </script>
+  </body>
+</html>

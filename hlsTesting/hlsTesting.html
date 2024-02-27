@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>HLS Video with Ad Insertion</title>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  </head>
+  <body>
+    <video id="video" controls></video>
+
+    <script>
+      var video = document.getElementById("video");
+      var hls = new Hls();
+
+      hls.loadSource(
+        "http://playertest.longtailvideo.com/adaptive/wowzaid3/playlist.m3u8"
+      );
+      hls.attachMedia(video);
+
+      video.addEventListener("loadedmetadata", function () {
+        var adInterval = 30;
+
+        setTimeout(function () {
+          insertAd();
+        }, adInterval * 1000);
+
+        video.addEventListener("timeupdate", function () {
+          if (video.currentTime >= adInterval) {
+            insertAd();
+            adInterval += 30;
+          }
+        });
+      });
+
+      function insertAd() {
+        video.pause();
+
+        fetch(
+          "http://walterebert.com/playground/video/hls/sintel-trailer.m3u8",
+          {
+            headers: new Headers({
+              "Access-Control-Allow-Origin": "*",
+              mode: "no-cors",
+            }),
+          }
+        )
+          .then(function (response) {
+            return response.text();
+          })
+          .then(function (data) {
+            var playlist = HlsParser.parse(data);
+
+            fetch(playlist.segments[0].url)
+              .then(function (response) {
+                return response.arrayBuffer();
+              })
+              .then(function (data) {
+                hls.buffer.appendBuffer(data);
+
+                hls.buffer.addEventListener("updateend", function () {
+                  var cue = new VTTCue(
+                    video.currentTime,
+                    video.currentTime + 5
+                  );
+                  video.textTracks[0].addCue(cue);
+
+                  video.addEventListener("cuechange", function onCueChange() {
+                    if (video.textTracks[0].activeCues.length === 0) {
+                      video.removeEventListener("cuechange", onCueChange);
+                      video.play();
+                    }
+                  });
+                });
+              });
+          });
+      }
+
+      var HlsParser = {
+        parse: function (data) {
+          var playlist = {
+            version: 0,
+            targetDuration: 0,
+            mediaSequence: 0,
+            segments: [],
+          };
+
+          var lines = data.trim().split("\n");
+          for (var i = 0; i < lines.length; i++) {
+            var line = lines[i].trim();
+            if (line.startsWith("#")) {
+              if (line.startsWith("#EXT-X-VERSION:")) {
+                playlist.version = parseInt(
+                  line.substring("#EXT-X-VERSION:".length)
+                );
+              } else if (line.startsWith("#EXT-X-TARGETDURATION:")) {
+                playlist.targetDuration = parseInt(
+                  line.substring("#EXT-X-TARGETDURATION:".length)
+                );
+              } else if (line.startsWith("#EXT-X-MEDIA-SEQUENCE:")) {
+                playlist.mediaSequence = parseInt(
+                  line.substring("#EXT-X-MEDIA-SEQUENCE:".length)
+                );
+              }
+            } else {
+              var parts = line.split(",");
+              var segment = {
+                url: parts[1].trim(),
+                duration: parseFloat(parts[3].split("=")[1]),
+                title: parts.length > 4 ? parts[4].split("=")[1] : "",
+                byteRange: parts.length > 5 ? parts[5].split("=")[1] : "",
+              };
+
+              playlist.segments.push(segment);
+            }
+          }
+
+          return playlist;
+        },
+      };
+    </script>
+  </body>
+</html>

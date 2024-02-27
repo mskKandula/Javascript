@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>MP4 Video Player</title>
+  </head>
+  <body>
+    <div>
+      <video id="video-player" controls muted="true"></video>
+    </div>
+    <script>
+      const videoUrl =
+        "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+      let video = document.getElementById("video-player");
+      const mediaSource = new MediaSource();
+
+      video.src = URL.createObjectURL(mediaSource);
+
+      mediaSource.addEventListener("sourceopen", () => {
+        const sourceBuffer = mediaSource.addSourceBuffer(
+          'video/mp4; codecs=" mp4a.40.2, avc1.42E01E"'
+        );
+
+        fetch(videoUrl).then((response) => {
+          console.log("24", response);
+          var reader = response.body.getReader();
+          reader.read().then((data) => {
+            console.log("26", data.value);
+            sourceBuffer.appendBuffer(data.value);
+          });
+        });
+        sourceBuffer.addEventListener("updateend", () => {
+          video.play();
+        });
+      });
+    </script>
+  </body>
+</html>

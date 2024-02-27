@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Video Captions with Speech Recognition</title>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <video id="video-player" controls>
+      <source src="golang.mp4" type="video/mp4" />
+      <track
+        id="captions-track"
+        label="English captions"
+        kind="captions"
+        srclang="en"
+        default
+      />
+    </video>
+    <script>
+      const videoPlayer = document.getElementById("video-player");
+      const captionsTrack = document.getElementById("captions-track").track;
+      const recognition =
+        window.SpeechRecognition || new webkitSpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = function (event) {
+        alert("26");
+        let transcript = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          if (event.results[i].isFinal) {
+            transcript += event.results[i][0].transcript + " ";
+          }
+        }
+        console.log(transcript);
+      };
+
+      recognition.onend = function () {
+        recognition.start();
+      };
+
+      // recognition.start();
+
+      videoPlayer.addEventListener("play", function () {
+        recognition.start();
+      });
+
+      videoPlayer.addEventListener("pause", function () {
+        recognition.stop();
+      });
+    </script>
+  </body>
+</html>

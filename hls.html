@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Video Captions with Speech Recognition</title>
+    <meta charset="UTF-8" />
+  </head>
+  <body>
+    <div>
+      <video id="video-player" controls muted="muted"></video>
+    </div>
+    <script>
+      const videoElement = document.getElementById("video-player");
+      const mediaSource = new MediaSource();
+      videoElement.src = URL.createObjectURL(mediaSource);
+
+      // Wait for the MediaSource to open
+      mediaSource.addEventListener("sourceopen", () => {
+        // Create a new SourceBuffer for the video
+        let mimeType = 'video/mp4; codecs="avc1.64001f"';
+        // let mimeType = 'video/webm; codecs="vp9,opus"';
+        const sourceBuffer = mediaSource.addSourceBuffer(mimeType);
+        //let url = "https://raw.githubusercontent.com/chromium/chromium/b4b3566f27d2814fbba1b115639eb7801dd691cf/media/test/data/bear-vp9-opus.webm";
+        let url =
+          "http://localhost:8887/media/video/70b3c009c99f46419a95ea5a84107f38/golang/index.m3u8";
+        // Load the main video
+        fetch(url)
+          .then((response) => {
+            console.log("25", response);
+            return response.text();
+          })
+          .then((m3u8Text) => {
+            console.log("38", m3u8Text);
+
+            const urls = m3u8Text
+              .split("\n")
+              .filter((line) => line.trim().length > 0 && line[0] !== "#");
+
+            let index = 0;
+
+            const fetchSegment = () => {
+              let indexUrl =
+                "http://localhost:8080/cdn/media/video/70b3c009c99f46419a95ea5a84107f38/golang/" +
+                urls[index];
+              console.log("47", indexUrl);
+              fetch(indexUrl)
+                .then((response) => {
+                  console.log("50", response);
+                  return response.arrayBuffer();
+                })
+                .then((segmentBuffer) => {
+                  console.log("54", segmentBuffer);
+                  sourceBuffer.appendBuffer(segmentBuffer);
+                  index++;
+
+                  if (index < urls.length) {
+                    fetchSegment();
+                  }
+                })
+                .catch((error) => console.error(error));
+            };
+
+            fetchSegment();
+          })
+          .catch((error) => console.error(error));
+      });
+    </script>
+  </body>
+</html>
